@@ -3,6 +3,7 @@
 <head>
     <title>View CMF example</title>
     <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <!-- Leaflet CSS -->
@@ -182,8 +183,8 @@
 
         // 2. Execute loading using your paths as arguments
         // Replace these URLs with your actual file locations
-        const myRasterPath = "http://previtus.github.io/geo_viewer/data/"+raster
-        const myVectorPath = "http://previtus.github.io/geo_viewer/data/"+vector
+        const myRasterPath = "https://previtus.github.io/geo_viewer/data/"+raster
+        const myVectorPath = "https://previtus.github.io/geo_viewer/data/"+vector
 
         var zoom_to_it = true
         // console.log("zoom_to_it",zoom_to_it)
