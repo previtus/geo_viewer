@@ -167,15 +167,15 @@
         var zoom = parseFloat(urlParams.get('zoom'));
         if (zoom === null) { zoom = 13 } // a good default
 
-        if (raster === null) {
+        if (raster === null || raster === "") {
             // Then fill in defaults
             raster = "EMIT_L1B_RAD_001_20230204T040649_2303503_007__CMF_nh3.tif"
             vector = "EMIT_L1B_RAD_001_20230204T040649_2303503_007.geojson"
             folder = "data"
 
-            lon=39.24987
-            lat=111.14731
-            zoom=13
+            lon = 39.24987
+            lat = 111.14731
+            zoom = 13
 
             urlParams.set('raster', raster);
             urlParams.set('vector', vector);
