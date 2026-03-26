@@ -173,9 +173,17 @@
             vector = "EMIT_L1B_RAD_001_20230204T040649_2303503_007.geojson"
             folder = "data"
 
+            lon=39.24987
+            lat=111.14731
+            zoom=13
+
             urlParams.set('raster', raster);
             urlParams.set('vector', vector);
             urlParams.set('folder', folder);
+            urlParams.set('lon', lon);
+            urlParams.set('lat', lat);
+            urlParams.set('zoom', zoom);
+
             // apply to the browsers url
             document.location.search = urlParams.toString();
 
