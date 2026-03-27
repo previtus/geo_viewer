@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>View CMF example</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <style>
+        #map { height: 100vh; width: 100%; }
+        body { margin: 0; padding: 0; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/rainbowvis.js@1.1.1/rainbowvis.js"></script>
+
+    <!-- GeoRaster Libraries -->
+    <script src="https://unpkg.com/geotiff@0.4/dist/geotiff.browserify.min.js"></script>
+    <script src="https://unpkg.com/georaster-layer-for-leaflet/dist/georaster-layer-for-leaflet.min.js"></script>
+
+    <!--  Layer display functions  -->
+    <script>
+        /**
+         * Loads a GeoTIFF from a URL and adds it to the map.
+         * @param {string} url - Path to the .tif file
+         */
+        function addGeoTiff(url, zoom_to_it) {
+            layer = fetch(url)
+                .then(response => response.arrayBuffer())
+                .then(arrayBuffer => {
+                    parseGeoraster(arrayBuffer).then(georaster => {
+                        const numberOfItems = Math.round(georaster.maxs[0])
+                        const rainbow = new Rainbow()
+                        rainbow.setNumberRange(1, numberOfItems)
+                        rainbow.setSpectrum('black', 'white')
+
+                        const cmf_layer = new GeoRasterLayer({
+                            georaster: georaster,
+                            opacity: 1.0,
+                            resolution: 128,
+
+                            // masks no data, but it's faster without it...
+                            pixelValuesToColorFn: vals => Math.round(vals[0]) == -9999 ? null : '#' + rainbow.colourAt(Math.round(vals[0])),
+
+                        });
+
+                        cmf_layer.addTo(map);
+                        var overlayMaps = {
+                            "CMF": cmf_layer
+                        };
+                        L.control.layers(null, overlayMaps).addTo(map);
+
+                        document.addEventListener('keydown', function(event) {
+                            //console.log("key pressed", event.key)
+                            // for some reason alt + q produces "œ" (well at least on this keyboard setting...)
+                            // Check if Alt + q is pressed \\ or x
+                            if (event.key === 'x' || event.key === 'q' || event.key === 'œ') {
+                                if (map.hasLayer(cmf_layer)) {
+                                    map.removeLayer(cmf_layer);
+                                } else {
+                                    map.addLayer(cmf_layer);
+                                }
+                            }
+                        });
+
+                        if (zoom_to_it) {
+                            map.fitBounds(layer.getBounds());
+                        }
+                    });
+                })
+                .catch(err => console.error("Error loading GeoTIFF:", err));
+        }
+
+
+        /**
+         * Loads a GeoJSON vector file and adds it to the map.
+         * @param {string} url - Path to the .geojson file
+         */
+        function addVector(url) {
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const vectorLayer = L.geoJSON(data, {
+                        style: { color: "#ff7800", weight: 2, fillOpacity: 0.1 },
+                        onEachFeature: function (feature, layer) {
+
+                        layer.on('mouseover', function (e) {
+                            // Log properties to console
+                            console.log(feature.properties);
+
+                            // Or, open a popup with variables
+                            layer.bindPopup(
+                                'Confidence: ' + feature.properties.confidence.toFixed(2)
+                                + ',<br>D_norm_1: ' + feature.properties.D_norm_1.toFixed(2)
+                                + ', D_norm_2: ' + feature.properties.D_norm_2.toFixed(2)
+                                + ',<br>num_of_px: ' + feature.properties.number_of_pixels
+                            ).openPopup();
+
+                            // Example: Highlight on hover
+                            layer.setStyle({color: 'red'});
+                        });
+                        layer.on('mouseout', function (e) {
+                            layer.closePopup();
+                            // Reset style on hover out
+                            layer.setStyle({color: 'blue'});
+                        });
+                    }
+
+                    }).addTo(map);
+
+                    var overlayMaps = {
+                        "Predictions": vectorLayer
+                    };
+                    L.control.layers(null, overlayMaps).addTo(map);
+                    // Optionally zoom to vector bounds if no raster is loaded
+                    // map.fitBounds(vectorLayer.getBounds());
+                })
+                .catch(err => console.error("Error loading Vector:", err));
+        }
+    </script>
+
+    <!--  Map setup  -->
+    <script>
+        // 1. Initialize the Map
+        const map = L.map('map').setView([0, 0], 2);
+
+        // base maps pane - behind others:
+        map.createPane('baseMaps');
+        map.getPane('baseMaps').style.zIndex = 0; // Higher than tiles (200), lower than markers (600)
+
+        // Add a base layer (OpenStreetMap)
+        osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            pane: 'baseMaps'
+        });
+        // osm.addTo(map);
+        // Google map layer:
+        googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+             maxZoom: 20,subdomains:['mt0','mt1','mt2','mt3'],
+             pane: 'baseMaps'
+        });
+        googleSat.addTo(map);
+        var baseMaps = {
+            "osm": osm,
+            "satellite": googleSat,
+        };
+        L.control.layers(baseMaps, null).addTo(map);
+
+
+        // Load paths from the url params:
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+        var folder = urlParams.get('folder');
+        var raster = urlParams.get('raster');
+        var vector = urlParams.get('vector');
+
+        var lon = parseFloat(urlParams.get('lon'));
+        var lat = parseFloat(urlParams.get('lat'));
+        var zoom = parseFloat(urlParams.get('zoom'));
+        if (zoom === null) { zoom = 13 } // a good default
+
+        if (raster === null) {
+            // Then fill in defaults
+            raster = "EMIT_L1B_RAD_001_20230204T040649_2303503_007__CMF_nh3.tif"
+            vector = "EMIT_L1B_RAD_001_20230204T040649_2303503_007.geojson"
+            repo = "geo_viewer_demo"
+
+            lon = 39.24987
+            lat = 111.14731
+            zoom = 13
+
+            urlParams.set('raster', raster);
+            urlParams.set('vector', vector);
+            urlParams.set('repo', repo);
+            urlParams.set('lon', lon);
+            urlParams.set('lat', lat);
+            urlParams.set('zoom', zoom);
+            // apply to the browsers url
+            document.location.search = urlParams.toString();
+
+        }
+
+        // 2. Execute loading using your paths as arguments
+        // Replace these URLs with your actual file locations
+        // https://huggingface.co/datasets/previtus/geo_viewer_demo/resolve/main/data/EMIT_L1B_RAD_001_20230204T040649_2303503_007.geojson
+        // https://huggingface.co/datasets/previtus/geo_viewer_demo/resolve/main/data/EMIT_L1B_RAD_001_20230204T040649_2303503_007__CMF_nh3.tif
+
+        const myRasterPath = "https://huggingface.co/datasets/previtus/geo_viewer_demo/resolve/main/data/"+raster // "http://localhost:8000/data/EMIT_L1B_RAD_001_20230204T040649_2303503_007__CMF_nh3.tif";
+        const myVectorPath = "https://huggingface.co/datasets/previtus/geo_viewer_demo/resolve/main/data/"+vector // "http://localhost:8000/data/EMIT_L1B_RAD_001_20230204T040649_2303503_007.geojson";
+
+        var zoom_to_it = true
+        // console.log("zoom_to_it",zoom_to_it)
+        // console.log("lon",lon, isNaN(lon))
+
+        if (!isNaN(lon)) {
+            // zoom the map to lon, lat:
+            //map.setView([39.24987, 111.14731], 16); // 39.24987&lat=111.14731&zoom=16
+            map.setView([lon, lat], zoom);
+
+            // no longer need to zoom to the geotiff
+            zoom_to_it = false
+        }
+
+        addGeoTiff(myRasterPath, zoom_to_it);
+        addVector(myVectorPath);
+
+        // Right-click event listener
+        map.on('contextmenu', function(e) {
+            // Get latlng from event
+            var lat = e.latlng.lat.toFixed(6);
+            var lng = e.latlng.lng.toFixed(6);
+            var coords = lat + ", " + lng;
+
+            // Copy to clipboard
+            navigator.clipboard.writeText(coords).then(function() {
+                console.log('Coordinates copied to clipboard: ' + coords);
+
+                // Optional: Add a temporary popup showing the coordinates
+                L.popup()
+                    .setLatLng(e.latlng)
+                    .setContent("Copied: " + coords)
+                    .openOn(map);
+            }).catch(function(err) {
+                console.error('Could not copy text: ', err);
+            });
+        });
+
+    </script>
+</body>
+</html>
