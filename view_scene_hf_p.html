@@ -25,6 +25,51 @@
     <script src="https://unpkg.com/geotiff@0.4/dist/geotiff.browserify.min.js"></script>
     <script src="https://unpkg.com/georaster-layer-for-leaflet/dist/georaster-layer-for-leaflet.min.js"></script>
 
+    <script>
+        // Function to set a cookie using the CookieStore API
+        function setApiKeyCookie(keyName, keyValue, days) {
+            const d = new Date();
+            d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+            const expires = "expires=" + d.toUTCString();
+            // Set the cookie with key-value pair, expiration date, and path
+            // The 'secure' and 'SameSite' attributes are highly recommended for security
+            document.cookie = keyName + "=" + keyValue + ";" + expires + ";path=/;secure;SameSite=Strict";
+        }
+        const getCookie = (name) => {
+          const value = `; ${document.cookie}`;
+          const parts = value.split(`; ${name}=`);
+          if (parts.length === 2) return parts.pop().split(';').shift();
+        };
+
+        const apiKey = getCookie('apiKeyCookieStore');
+        const oneDayInMs = 24 * 60 * 60 * 1000;
+
+        const queryString1 = window.location.search;
+        const urlParams1 = new URLSearchParams(queryString1);
+        var reset = urlParams1.get('reset');
+        if (reset === "True") {
+            setApiKeyCookie("myApiKey", "foo", oneDayInMs);
+        }
+        var HF_TOKEN = getCookie("myApiKey")
+
+        console.log(HF_TOKEN);
+        console.log(typeof HF_TOKEN);
+        console.log(HF_TOKEN === null || HF_TOKEN === undefined || HF_TOKEN == "foo" || HF_TOKEN == "none");
+
+        if (HF_TOKEN === null || HF_TOKEN === undefined || HF_TOKEN == "foo" || HF_TOKEN == "none") {
+            console.log("should ask...");
+            const userAnsw = prompt("Please enter your key:", "hf_KEY");
+            if (userAnsw !== null && userAnsw.trim() !== "") {
+                setApiKeyCookie("myApiKey", userAnsw, oneDayInMs);
+            } else {
+                console.log("User canceled or didn't enter a key ... will fail.");
+            }
+
+            // Then retry:
+            HF_TOKEN = getCookie("myApiKey")
+        }
+    </script>
+
     <!--  Layer display functions  -->
     <script>
         /**
@@ -32,8 +77,12 @@
          * @param {string} url - Path to the .tif file
          */
         function addGeoTiff(url, zoom_to_it) {
-            layer = fetch(url)
-                .then(response => response.arrayBuffer())
+            layer = fetch(url, {
+                    headers: {
+                        Authorization: `Bearer ${HF_TOKEN}`
+                    }
+                })
+                .then(response => response.arrayBuffer()) // Get file as ArrayBuffer
                 .then(arrayBuffer => {
                     parseGeoraster(arrayBuffer).then(georaster => {
                         const numberOfItems = Math.round(georaster.maxs[0])
@@ -84,7 +133,11 @@
          * @param {string} url - Path to the .geojson file
          */
         function addVector(url) {
-            fetch(url)
+            fetch(url, {
+                    headers: {
+                        Authorization: `Bearer ${HF_TOKEN}`
+                    }
+                })
                 .then(response => response.json())
                 .then(data => {
                     const vectorLayer = L.geoJSON(data, {
@@ -168,12 +221,12 @@
 
         if (raster === null) {
             // Then fill in defaults
-            raster = "EMIT_L1B_RAD_001_20230204T040649_2303503_007__CMF_nh3.tif"
-            vector = "EMIT_L1B_RAD_001_20230204T040649_2303503_007.geojson"
-            repo = "geo_viewer_demo"
+            raster = "EMIT_L1B_RAD_001_20250304T121816_2506308_015__CMF_nh3.tif"
+            vector = "EMIT_L1B_RAD_001_20250304T121816_2506308_015.geojson"
+            repo = "geo_viewer_private"
 
-            lon = 39.24987
-            lat = 111.14731
+            lon = -42.674518
+            lat = -22.899888
             zoom = 13
 
             urlParams.set('raster', raster);
