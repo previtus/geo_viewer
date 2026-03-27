@@ -53,10 +53,6 @@
         }
         var HF_TOKEN = getCookie("myApiKey")
 
-        console.log(HF_TOKEN);
-        console.log(typeof HF_TOKEN);
-        console.log(HF_TOKEN === null || HF_TOKEN === undefined || HF_TOKEN == "foo" || HF_TOKEN == "none");
-
         if (HF_TOKEN === null || HF_TOKEN === undefined || HF_TOKEN == "foo" || HF_TOKEN == "none") {
             console.log("should ask...");
             const userAnsw = prompt("Please enter your key:", "hf_KEY");
@@ -226,8 +222,8 @@
             vector = "EMIT_L1B_RAD_001_20250304T121816_2506308_015.geojson"
             repo = "geo_viewer_private"
 
-            lon = -42.674518
-            lat = -22.899888
+            lon = -22.899888
+            lat = -42.674518
             zoom = 13
 
             urlParams.set('raster', raster);
@@ -259,8 +255,8 @@
             zoom_to_it = false
         }
 
-        //addGeoTiff(myRasterPath, zoom_to_it);
-        //addVector(myVectorPath);
+        addGeoTiff(myRasterPath, zoom_to_it);
+        addVector(myVectorPath);
 
         // Right-click event listener
         map.on('contextmenu', function(e) {
